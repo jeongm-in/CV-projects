@@ -72,16 +72,17 @@ r = cv2.selectROI('Select ROI', src_img)
 cv2.waitKey(0) & 0xFF
 cv2.destroyAllWindows()
 
+# Record dimension of ROI
 ix, iy, w, h = r
 ROI_drawn = cv2.rectangle(src_img, (ix, iy), (ix + w, iy + h), (0, 255, 0), 2)
 cv2.imwrite(final_directory + 'ROI_marked.jpg', ROI_drawn)
 
-if show_frame:
-    cv2.namedWindow('ROI', 0)
-    cv2.resizeWindow('ROI', 640, 480)
-    cv2.imshow('ROI', ROI_drawn)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+# Show selected ROI
+cv2.namedWindow('ROI', 0)
+cv2.resizeWindow('ROI', 640, 480)
+cv2.imshow('ROI', ROI_drawn)
+cv2.waitKey(0) & 0xFF
+cv2.destroyAllWindows()
 
 # Record frame by frame from source video
 capture_video = cv2.VideoCapture(source_video)
@@ -97,6 +98,8 @@ cv2.moveWindow('Feature', 400, 100)
 
 print('Processing', end='')
 parameters = create_blob_detector_object()
+
+# Main loop for image processing and detection
 while True:
     frame_number += 1
     if frame_number % 20 == 0:
@@ -112,19 +115,21 @@ while True:
     # Decrease noise from cropped ROI image using Gaussian Blur
     blur = cv2.GaussianBlur(ROI, (5, 5), 0)  # Param: source, kernel_size,
 
-    # Change image to binary image using Otsu's method
+    # Convert image to binary image using Otsu's method
     return_value, binary_image = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
     if show_frame:
         cv2.imshow('Binary Image', binary_image)
 
-    # Begin feature detection and record location
+    # Begin feature detection and record location of key points
     detected_image, kp = feature_detector(detector_object=parameters, img=binary_image)
     keypoint_list = cv2.KeyPoint_convert(kp)
 
+    # If any frame detects 0 or multiple keypoints, raise flag to mark failure
     if len(keypoint_list) != 1:
         failed_frames += 1
 
+    # If cell escapes ROI, script will terminate.
     try:
         cell_coordinates.append(list(keypoint_list)[0][0])
     except IndexError as e:
@@ -132,11 +137,13 @@ while True:
         print('Select different ROI. Script terminated.')
         sys.exit()
 
+    # Record radius of cell from first frame
     if first_ROI:
         first_ROI = False
         cell_diameter = kp[0].size
         cell_rad = round(cell_diameter / 5, 3)
 
+    # Show and save frame by frame image of source video
     if show_frame:
         cv2.imshow('Feature', detected_image)
         cv2.waitKey(40) & 0xFF
@@ -163,7 +170,9 @@ time_elapsed = time_end - time_begin
 print('\nScript completed in ' + str(round(time_elapsed, 4)) + ' seconds.', end='\n')
 print('Failed to detect ' + str(failed_frames) + ' frames out of ' + str(number_of_frames) + ' frames!\n')
 
+# If more than one frame failed to detect accurate keypoint, script will terminate.
 if not failed_frames:
+    # Crossover frequency is frequency of cell with farthest position.
     frequencies = numpy.linspace(10000, 35000, number_of_frames)
     turning_point_fq = round(frequencies[numpy.argmax(cell_coordinates)], None) * 0.001
 
