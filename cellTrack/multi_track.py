@@ -1,4 +1,4 @@
-import cv2, numpy, time, sys
+import cv2, numpy, time, sys, math
 import directory
 
 
@@ -36,10 +36,6 @@ def feature_detector(detector_object, img):
     return img_with_keypoints, keypoints
 
 
-# Ask user to choose whether to show frame or save frame.
-# Both actions add up to processing time
-run = input('Type name of directory to save files: ')
-
 # String concatenations for directories
 source_video = directory.svideo
 directory = directory.fdirectory
@@ -59,7 +55,7 @@ cv2.destroyAllWindows()
 # ROI region from ROI selection
 ix, iy, w, h = r
 ROI_drawn = cv2.rectangle(src_img, (ix, iy), (ix + w, iy + h), (0, 255, 0), 2)
-cv2.imwrite(directory + run + 'ROI_marked.jpg', ROI_drawn)
+cv2.imwrite(directory + 'ROI_marked.jpg', ROI_drawn)
 
 # Show first ROI region
 cv2.namedWindow('ROI', 0)
@@ -73,7 +69,7 @@ parameters = create_blob_detector_object()
 
 # Record frame by frame from source video
 capture_video = cv2.VideoCapture(source_video)
-frame_number = 0
+frame_number = -1
 failed_frames = 0
 first_ROI = True  # Flag to record radius of cell in first frame
 radii = []
@@ -82,8 +78,9 @@ radii = []
 cv2.namedWindow('Detected')
 cv2.resizeWindow('Detected', 200, 960)
 while True:
-    frame_number += 1
     read_success, frame = capture_video.read()
+    frame_number += 1
+
     if not read_success:
         break
 
@@ -91,39 +88,67 @@ while True:
     grayscale = cv2.cvtColor(ROI, cv2.COLOR_BGR2GRAY)
     blur = cv2.GaussianBlur(grayscale, (11, 11), 0)
     th = cv2.adaptiveThreshold(blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, \
-                               cv2.THRESH_BINARY, 45, 2)
+                               cv2.THRESH_BINARY, 99, 2)
 
     detected_img, detected_kp = feature_detector(parameters, th)
     cv2.imshow('Detected', detected_img)
+    cv2.imwrite(directory + str(frame_number) + '.jpg', detected_img)
+
     if first_ROI:
         first_ROI = False
         k = cv2.waitKey(0) & 0xFF
+        numkp = cv2.KeyPoint_convert(detected_kp)
+        detected_cell_number = len(numkp)
+
+        print('Found ' + str(detected_cell_number) + ' cells in first frame. Press ESC to abort.')
+
         if k == 27:
             sys.exit()
         else:
-            numkp = cv2.KeyPoint_convert(detected_kp)
-            detected_cell_number = len(numkp)
-            coord = numpy.zeros((400, detected_cell_number + 1))
-            if detected_cell_number > 0:
-                for i in detected_kp:
-                    radii.append(round(i.size / 5, 3))
             time_begin = time.time()
+            coord = numpy.zeros((400, detected_cell_number, 2))
+            prev = numpy.zeros((detected_cell_number, 2))
+            now = numpy.zeros((detected_cell_number, 2))
+            final_x = numpy.zeros((400, detected_cell_number))
+
+            if detected_cell_number > 0:
+                coord[0] = numkp
+                for i, v in enumerate(detected_kp):
+                    radii.append(round(v.size / 5, 3))
+                    final_x[0][i] = numkp[i][0]
+        continue
 
     if len(cv2.KeyPoint_convert(detected_kp)) != detected_cell_number:
         print('Feature detection error in ' + str(frame_number) + ' frame!')
+
     else:
-        for i, v in enumerate(cv2.KeyPoint_convert(detected_kp)):
-            coord[frame_number - 1][i] = v[0]
+        now = cv2.KeyPoint_convert(detected_kp)
+        prev = coord[frame_number - 1]
+
+        # Brute force difference calculation
+        for i in range(detected_cell_number):
+            min_comp = [100000000, 0]
+            for j in range(detected_cell_number):
+                diff = math.sqrt(
+                    (now[i][0] - prev[j][0]) * (now[i][0] - prev[j][0]) + \
+                    (now[i][1] - prev[j][1]) * (now[i][1] - prev[j][1]))
+
+                if diff < min_comp[0]:
+                    min_comp[0] = diff
+                    min_comp[1] = j
+
+            coord[frame_number][min_comp[1]] = now[i]
+            final_x[frame_number][min_comp[1]] = now[i][0]
 
     cv2.waitKey(5) & 0xFF
 
+# End of loop
 cv2.destroyAllWindows()
 time_end = time.time()
 
+# Calculate Crossover frequency
 frequency_range = numpy.linspace(10000, 35000, frame_number)
 frequencies = []
-
-# Calculate Crossover frequency
 print('\n' + str(detected_cell_number) + ' cells detected. ')
 
 # Print results
@@ -137,10 +162,19 @@ for i in range(detected_cell_number):
     print('Crossover frequency : ' + str(freq_crossover) + ' kHz.')
 
 # Write radius and frequency to file
-f = open(directory + run + '_radii_frequencies.txt', 'w')
+f = open(directory + '_debug.txt', 'w')
 result = numpy.vstack((radii, frequencies))
 f.write(str(result))
 f.close()
+
+## Debug area for coordinate recording
+# f = open(directory + 'debug.txt', 'w')
+# bbb = 1
+# for line in final_x:
+#     f.write(str(bbb) + ' ' + str(line) + '\n')
+#     bbb += 1
+#
+# f.close()
 
 time_elapsed = time_end - time_begin
 print('\nScript completed in ' + str(round(time_elapsed, 4)) + ' seconds.', end='\n')
