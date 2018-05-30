@@ -6,7 +6,7 @@ def create_blob_detector_object():
     params = cv2.SimpleBlobDetector_Params()
     # Parameters are as follows
     params.filterByArea = True
-    params.minArea = 600
+    params.minArea = 400
     params.maxArea = 4000
 
     params.filterByCircularity = True
@@ -54,7 +54,7 @@ cv2.destroyAllWindows()
 
 # ROI region from ROI selection
 ix, iy, w, h = r
-ROI_drawn = cv2.rectangle(src_img, (ix, iy), (ix + w, iy + h), (0, 255, 0), 2)
+ROI_drawn = cv2.rectangle(src_img, (ix, iy), (ix + w, iy + h), (0, 255, 127), 2)
 cv2.imwrite(directory + 'ROI_marked.jpg', ROI_drawn)
 
 # Show first ROI region
@@ -88,7 +88,7 @@ while True:
     grayscale = cv2.cvtColor(ROI, cv2.COLOR_BGR2GRAY)
     blur = cv2.GaussianBlur(grayscale, (11, 11), 0)
     th = cv2.adaptiveThreshold(blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, \
-                               cv2.THRESH_BINARY, 41, 2)
+                               cv2.THRESH_BINARY, 35, 2)
 
     detected_img, detected_kp = feature_detector(parameters, th)
 
@@ -98,15 +98,19 @@ while True:
         numkp = cv2.KeyPoint_convert(detected_kp)
         detected_cell_number = len(numkp)
         for i in range(detected_cell_number):
-            label = 'Cell #' + str(i)
+            label = '#' + str(i)
             point = (numkp[i][0], numkp[i][1])
-            cv2.putText(detected_img, label, point, font, 0.5, (0, 127, 255), 1, cv2.LINE_AA)
+            R_point = (int(numkp[i][0] + ix), int(numkp[i][1] + iy))
+            cv2.putText(detected_img, label, point, font, 0.5, (64, 255, 127), 1, cv2.LINE_AA)
+            cv2.putText(ROI_drawn, label, R_point, font, 1, (0, 0, 0), 2, cv2.LINE_AA)
 
         cv2.namedWindow('Detected')
         cv2.resizeWindow('Detected', 200, 960)
         cv2.imshow('Detected', detected_img)
         cv2.waitKey(0)
         cv2.imwrite(directory + str(frame_number) + '.jpg', detected_img)
+        cv2.imwrite(directory + 'ROI_marked.jpg', ROI_drawn)
+
         print('Found ' + str(detected_cell_number) + ' cells in first frame. Press ESC to abort.')
 
         if k == 27:
@@ -116,6 +120,7 @@ while True:
             coord = numpy.zeros((400, detected_cell_number, 2))
             prev = numpy.zeros((detected_cell_number, 2))
             now = numpy.zeros((detected_cell_number, 2))
+            errors = [0] * detected_cell_number
 
             if detected_cell_number > 0:
                 coord[0] = numkp
@@ -124,31 +129,72 @@ while True:
 
         continue
 
-    if len(cv2.KeyPoint_convert(detected_kp)) != detected_cell_number:
+    cell_count = len(cv2.KeyPoint_convert(detected_kp))
+    if cell_count < detected_cell_number:
         print('Feature detection error in ' + str(frame_number) + ' frame!')
+        if frame_number < 11:
+            print('Feature detection error before first 11 frames. Terminating script')
+            sys.exit()
+
+        now = cv2.KeyPoint_convert(detected_kp)
+        prev = coord[frame_number - 1]
+        trend = [1] * detected_cell_number
+        temp = [0] * detected_cell_number
+        for t in range(detected_cell_number):
+            slope = (coord[frame_number - 1][t][1] - coord[frame_number - 11][t][1]) / \
+                    (coord[frame_number - 1][t][0] - coord[frame_number - 11][t][0])
+            if slope < 0:
+                trend[t] = -1
+
+        for i, a in enumerate(prev):
+            min_comp = [100000000, 0, -10000000]
+            for j, b in enumerate(now):
+                diff = math.sqrt(
+                    (b[0] - a[0]) * (b[0] - a[0]) + (b[1] - a[1]) * (b[1] - a[1]))
+
+                if diff < min_comp[0]:
+                    min_comp[0] = diff
+                    min_comp[1] = j
+                    min_comp[2] = b
+
+            coord[frame_number][i] = min_comp[2]
+            temp[i] = min_comp[0]
+
+        for i in range(detected_cell_number - cell_count):
+            invalid_I = numpy.argmax(temp)
+            temp[invalid_I] = -1
+            errors[invalid_I] += 1
+            coord[frame_number][invalid_I][0] = prev[invalid_I][0] + trend[invalid_I]
+            coord[frame_number][invalid_I][1] = prev[invalid_I][1] + trend[invalid_I]
+
 
     else:
         now = cv2.KeyPoint_convert(detected_kp)
         prev = coord[frame_number - 1]
 
         # Brute force difference calculation
-        for i in range(detected_cell_number):
-            min_comp = [100000000, 0]
-            for j in range(detected_cell_number):
+        for i, a in enumerate(prev):
+            min_comp = [100000000, 0, -10000000]
+            for j, b in enumerate(now):
                 diff = math.sqrt(
-                    (now[i][0] - prev[j][0]) * (now[i][0] - prev[j][0]) + \
-                    (now[i][1] - prev[j][1]) * (now[i][1] - prev[j][1]))
+                    (b[0] - a[0]) * (b[0] - a[0]) + (b[1] - a[1]) * (b[1] - a[1]))
 
                 if diff < min_comp[0]:
                     min_comp[0] = diff
                     min_comp[1] = j
+                    min_comp[2] = b
 
-            coord[frame_number][min_comp[1]] = now[i]
+            # if min_comp[0] > 4:
+            #     coord[frame_number][min_comp[1]][0] = prev[i][0]
+            #     coord[frame_number][min_comp[1]][1] = prev[i][1]
+            #
+            # else:
+            coord[frame_number][i] = min_comp[2]
 
     for i in range(detected_cell_number):
-        label = 'Cell #' + str(i)
+        label = '#' + str(i)
         point = (int(coord[frame_number][i][0]), int(coord[frame_number][i][1]))
-        cv2.putText(detected_img, label, point, font, 0.5, (0, 127, 255), 1, cv2.LINE_AA)
+        cv2.putText(detected_img, label, point, font, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
 
     cv2.imshow('Detected', detected_img)
     cv2.imwrite(directory + str(frame_number) + '.jpg', detected_img)
@@ -171,7 +217,8 @@ for i in range(detected_cell_number):
     freq_crossover = int(frequency_range[maxI])
     frequencies.append(freq_crossover)
     statement = ('Cell # ' + str(i) + '\n') + ('Radius : ' + str(radii[i]) + ' um\n') + \
-                ('Crossover frequency : ' + str(freq_crossover) + ' kHz\n')
+                ('Crossover frequency : ' + str(freq_crossover) + ' kHz\n') + \
+                ('Total ' + str(errors[i]) + ' approximations were made.\n\n')
     f.write(statement)
     print(statement)
 
@@ -187,4 +234,4 @@ f.close()
 # f.close()
 
 time_elapsed = time_end - time_begin
-print('\nScript completed in ' + str(round(time_elapsed, 4)) + ' seconds.', end='\n')
+print('Script completed in ' + str(round(time_elapsed, 4)) + ' seconds.', end='\n')
