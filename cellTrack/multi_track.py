@@ -100,7 +100,7 @@ while True:
         for i in range(detected_cell_number):
             label = 'Cell #' + str(i)
             point = (numkp[i][0], numkp[i][1])
-            cv2.putText(detected_img, label, point, font, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
+            cv2.putText(detected_img, label, point, font, 0.5, (0, 127, 255), 1, cv2.LINE_AA)
 
         cv2.namedWindow('Detected')
         cv2.resizeWindow('Detected', 200, 960)
@@ -121,6 +121,7 @@ while True:
                 coord[0] = numkp
                 for i, v in enumerate(detected_kp):
                     radii.append(round(v.size / 5, 3))
+
         continue
 
     if len(cv2.KeyPoint_convert(detected_kp)) != detected_cell_number:
@@ -147,7 +148,7 @@ while True:
     for i in range(detected_cell_number):
         label = 'Cell #' + str(i)
         point = (int(coord[frame_number][i][0]), int(coord[frame_number][i][1]))
-        cv2.putText(detected_img, label, point, font, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
+        cv2.putText(detected_img, label, point, font, 0.5, (0, 127, 255), 1, cv2.LINE_AA)
 
     cv2.imshow('Detected', detected_img)
     cv2.imwrite(directory + str(frame_number) + '.jpg', detected_img)
@@ -162,20 +163,18 @@ time_end = time.time()
 frequency_range = numpy.linspace(10000, 35000, frame_number)
 frequencies = []
 print('\n' + str(detected_cell_number) + ' cells detected. ')
+
 # Print results
+f = open(directory + 'result.txt', 'w')
 for i in range(detected_cell_number):
     maxI = numpy.argmax(coord[:, i, 0])
-    freq_crossover = round(frequency_range[maxI])
+    freq_crossover = int(frequency_range[maxI])
     frequencies.append(freq_crossover)
+    statement = ('Cell # ' + str(i) + '\n') + ('Radius : ' + str(radii[i]) + ' um\n') + \
+                ('Crossover frequency : ' + str(freq_crossover) + ' kHz\n')
+    f.write(statement)
+    print(statement)
 
-    print('Cell # ' + str(i))
-    print('Radius : ' + str(radii[i]) + ' um')
-    print('Crossover frequency : ' + str(freq_crossover) + ' kHz.')
-
-# Write radius and frequency to file
-f = open(directory + '_debug.txt', 'w')
-result = numpy.vstack((radii, frequencies))
-f.write(str(result))
 f.close()
 
 # Debug area for coordinate recording
