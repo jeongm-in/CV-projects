@@ -75,8 +75,8 @@ first_ROI = True  # Flag to record radius of cell in first frame
 radii = []
 
 # Loop through all frames of video
-cv2.namedWindow('Detected')
-cv2.resizeWindow('Detected', 200, 960)
+font = cv2.FONT_HERSHEY_SIMPLEX
+
 while True:
     read_success, frame = capture_video.read()
     frame_number += 1
@@ -88,18 +88,25 @@ while True:
     grayscale = cv2.cvtColor(ROI, cv2.COLOR_BGR2GRAY)
     blur = cv2.GaussianBlur(grayscale, (11, 11), 0)
     th = cv2.adaptiveThreshold(blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, \
-                               cv2.THRESH_BINARY, 99, 2)
+                               cv2.THRESH_BINARY, 41, 2)
 
     detected_img, detected_kp = feature_detector(parameters, th)
-    cv2.imshow('Detected', detected_img)
-    cv2.imwrite(directory + str(frame_number) + '.jpg', detected_img)
 
     if first_ROI:
         first_ROI = False
         k = cv2.waitKey(0) & 0xFF
         numkp = cv2.KeyPoint_convert(detected_kp)
         detected_cell_number = len(numkp)
+        for i in range(detected_cell_number):
+            label = 'Cell #' + str(i)
+            point = (numkp[i][0], numkp[i][1])
+            cv2.putText(detected_img, label, point, font, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
 
+        cv2.namedWindow('Detected')
+        cv2.resizeWindow('Detected', 200, 960)
+        cv2.imshow('Detected', detected_img)
+        cv2.waitKey(0)
+        cv2.imwrite(directory + str(frame_number) + '.jpg', detected_img)
         print('Found ' + str(detected_cell_number) + ' cells in first frame. Press ESC to abort.')
 
         if k == 27:
@@ -109,13 +116,11 @@ while True:
             coord = numpy.zeros((400, detected_cell_number, 2))
             prev = numpy.zeros((detected_cell_number, 2))
             now = numpy.zeros((detected_cell_number, 2))
-            final_x = numpy.zeros((400, detected_cell_number))
 
             if detected_cell_number > 0:
                 coord[0] = numkp
                 for i, v in enumerate(detected_kp):
                     radii.append(round(v.size / 5, 3))
-                    final_x[0][i] = numkp[i][0]
         continue
 
     if len(cv2.KeyPoint_convert(detected_kp)) != detected_cell_number:
@@ -138,7 +143,14 @@ while True:
                     min_comp[1] = j
 
             coord[frame_number][min_comp[1]] = now[i]
-            final_x[frame_number][min_comp[1]] = now[i][0]
+
+    for i in range(detected_cell_number):
+        label = 'Cell #' + str(i)
+        point = (int(coord[frame_number][i][0]), int(coord[frame_number][i][1]))
+        cv2.putText(detected_img, label, point, font, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
+
+    cv2.imshow('Detected', detected_img)
+    cv2.imwrite(directory + str(frame_number) + '.jpg', detected_img)
 
     cv2.waitKey(5) & 0xFF
 
@@ -150,14 +162,13 @@ time_end = time.time()
 frequency_range = numpy.linspace(10000, 35000, frame_number)
 frequencies = []
 print('\n' + str(detected_cell_number) + ' cells detected. ')
-
 # Print results
 for i in range(detected_cell_number):
-    maxI = numpy.argmax(coord[:, i])
+    maxI = numpy.argmax(coord[:, i, 0])
     freq_crossover = round(frequency_range[maxI])
     frequencies.append(freq_crossover)
 
-    print('Cell # ' + str(i + 1))
+    print('Cell # ' + str(i))
     print('Radius : ' + str(radii[i]) + ' um')
     print('Crossover frequency : ' + str(freq_crossover) + ' kHz.')
 
@@ -167,10 +178,10 @@ result = numpy.vstack((radii, frequencies))
 f.write(str(result))
 f.close()
 
-## Debug area for coordinate recording
+# Debug area for coordinate recording
 # f = open(directory + 'debug.txt', 'w')
 # bbb = 1
-# for line in final_x:
+# for line in coord[:, i, 0]:
 #     f.write(str(bbb) + ' ' + str(line) + '\n')
 #     bbb += 1
 #
