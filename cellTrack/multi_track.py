@@ -1,4 +1,5 @@
 import cv2, numpy, time, sys, math
+# Edit preset for directory, frequency and scale settings
 import preset
 
 
@@ -62,15 +63,15 @@ font = cv2.FONT_HERSHEY_PLAIN
 
 # Open and read from source video
 capture_video = cv2.VideoCapture(src_video)
-frame_number, failed_frames, first_ROI = -1, 0, True
+frame_number, failed_frames, is_first_ROI = -1, 0, True
 radii = []
 
 # Loop through all frames of video
 while True:
-    read_success, frame = capture_video.read()
+    read_successful, frame = capture_video.read()
     frame_number += 1
 
-    if not read_success:
+    if not read_successful:
         break
 
     ROI = frame[iy:iy + h, ix:ix + w]
@@ -81,8 +82,8 @@ while True:
 
     detected_img, detected_kp = feature_detector(parameters, th)
 
-    if first_ROI:
-        first_ROI = False
+    if is_first_ROI:
+        is_first_ROI = False
         k = cv2.waitKey(0) & 0xFF
         numkp = cv2.KeyPoint_convert(detected_kp)
         detected_cell_number = len(numkp)
@@ -138,25 +139,22 @@ while True:
         for i, a in enumerate(prev):
             min_comp = [100000000, 0, -10000000]
             for j, b in enumerate(now):
-                diff = math.sqrt(
-                    (b[0] - a[0]) * (b[0] - a[0]) + (b[1] - a[1]) * (b[1] - a[1]))
-
+                diff = math.sqrt((b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2)
                 if diff < min_comp[0]:
-                    min_comp[0] = diff
-                    min_comp[1] = j
-                    min_comp[2] = b
+                    min_comp = [diff, j, b]
 
             coord[frame_number][i] = min_comp[2]
             temp[i] = min_comp[0]
 
+        # Estimate movement of cells that escaped ROI according to their velocity
         for i in range(detected_cell_number - cell_count):
             invalid_I = numpy.argmax(temp)
             temp[invalid_I] = -1
-            errors[invalid_I] += 1
+            errors[invalid_I] += 1  # Count how many approximations were made for each cell
             coord[frame_number][invalid_I][0] = prev[invalid_I][0] + trend[invalid_I] / 2
             coord[frame_number][invalid_I][1] = prev[invalid_I][1] + trend[invalid_I] / 2
 
-    elif cell_count >= detected_cell_number:
+    else:
         now = cv2.KeyPoint_convert(detected_kp)
         prev = coord[frame_number - 1]
 
@@ -164,13 +162,9 @@ while True:
         for i, a in enumerate(prev):
             min_comp = [100000000, 0, -10000000]
             for j, b in enumerate(now):
-                diff = math.sqrt(
-                    (b[0] - a[0]) * (b[0] - a[0]) + (b[1] - a[1]) * (b[1] - a[1]))
-
+                diff = math.sqrt((b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2)
                 if diff < min_comp[0]:
-                    min_comp[0] = diff
-                    min_comp[1] = j
-                    min_comp[2] = b
+                    min_comp = [diff, j, b]
 
             coord[frame_number][i] = min_comp[2]
 
