@@ -1,3 +1,6 @@
+# Jeong-Min Lim (limjeongmin@wustl.edu)
+# https://github.com/jeongm/CV-projects
+# Python 3.6.5, OpenCV 3.4.0, and PyQt 5.10.1
 from PyQt5.QtWidgets import (QPushButton, QLineEdit, QAction,
                              QApplication, QLabel, QFileDialog,
                              QMainWindow, QListWidget, QListWidgetItem)
@@ -288,7 +291,7 @@ class MainFrame(QMainWindow):
         frequencies = []
         time_total = round(time_e - time_b, 3)
 
-        # Result Excel
+        # Write result to excel file
         book = openpyxl.Workbook()
         sheet = book.active
         sheet.title = 'Frequency and Radius'
@@ -354,7 +357,6 @@ class MainFrame(QMainWindow):
         self.first_frame.clear()
         self.source_video.setText('Source Video Directory')
         cv2.destroyAllWindows()
-
 
 
 if __name__ == '__main__':
