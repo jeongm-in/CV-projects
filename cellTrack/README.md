@@ -22,6 +22,8 @@ This is the GUI version of the python script to track cells.
 
 This program aims to find the crossover frequency and the radius of cells to provide data for rapid identification of cells.
 
+After successful execution, the program will save the image of ROI with labels and record results to Microsoft excel file.
+
 Built with Python 3.6.5, OpenCV 3.4.0, and PyQt 5.10.1
 
 ---
