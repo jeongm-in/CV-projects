@@ -53,10 +53,17 @@ class MainFrame(QMainWindow):
         openFile.setStatusTip('Open new File')
         openFile.triggered.connect(self.showDialog)
 
+        # Define clear window
+        clear_window = QAction(QIcon('web.png'),'Clear',self)
+        clear_window.setShortcut('Ctrl+R')
+        clear_window.setStatusTip('Clear program')
+        clear_window.triggered.connect(self.clearWindow)
+
         # Define menubar
         menubar = self.menuBar()
         fileMenu = menubar.addMenu('&File')
         fileMenu.addAction(openFile)
+        fileMenu.addAction(clear_window)
 
         # Define display for ROI coordinates
         self.roi_values = QLineEdit(self)
@@ -338,6 +345,16 @@ class MainFrame(QMainWindow):
                                                cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 
         return img_with_keypoints, keypoints
+
+    def clearWindow(self):
+        self.text_console.clear()
+        self.result_console.clear()
+        self.roi_values.clear()
+        self.detect_count.clear()
+        self.first_frame.clear()
+        self.source_video.setText('Source Video Directory')
+        cv2.destroyAllWindows()
+
 
 
 if __name__ == '__main__':
