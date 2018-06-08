@@ -2,7 +2,7 @@
 # https://github.com/jeongm/CV-projects
 # Python 3.6.5, OpenCV 3.4.0, and PyQt 5.10.1
 from PyQt5.QtWidgets import (QPushButton, QLineEdit, QAction,
-                             QApplication, QLabel, QFileDialog,
+                             QApplication, QLabel, QFileDialog, QMessageBox,
                              QMainWindow, QListWidget, QListWidgetItem)
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QIcon, QImage, QPixmap
@@ -21,8 +21,6 @@ class MainFrame(QMainWindow):
         self.initUI()
 
     def initUI(self):
-        # Define Buttons
-
         # Define button to begin detection
         self.roi_button = QPushButton('Select ROI', self)
         self.roi_button.clicked.connect(self.select_roi)
@@ -57,16 +55,22 @@ class MainFrame(QMainWindow):
         openFile.triggered.connect(self.showDialog)
 
         # Define clear window
-        clear_window = QAction(QIcon('web.png'),'Clear',self)
+        clear_window = QAction(QIcon('web.png'), 'Clear', self)
         clear_window.setShortcut('Ctrl+R')
         clear_window.setStatusTip('Clear program')
         clear_window.triggered.connect(self.clearWindow)
+
+        # Define toggle adaptive threshold
+        self.adaptive_check = QAction('Adaptive Threshold', self, checkable=True)
+        self.adaptive_check.setStatusTip('Toggle to enable adaptive threshold.')
+        self.adaptive_check.triggered.connect(self.adaptive_on)
 
         # Define menubar
         menubar = self.menuBar()
         fileMenu = menubar.addMenu('&File')
         fileMenu.addAction(openFile)
         fileMenu.addAction(clear_window)
+        fileMenu.addAction(self.adaptive_check)
 
         # Define display for ROI coordinates
         self.roi_values = QLineEdit(self)
@@ -186,7 +190,7 @@ class MainFrame(QMainWindow):
         if detected_cell_number > 0:
             self.coord[0] = numkp
             for i, v in enumerate(detected_kp):
-                self.radii.append(round(v.size * 5 / int(self.scale.text()), 3))
+                self.radii.append(v.size * 5 / int(self.scale.text()))
 
         # Show image within the GUI
         image_height, image_width, image_depth = detected_img.shape
@@ -289,7 +293,7 @@ class MainFrame(QMainWindow):
         freq_e = int(self.fin_freq.text())
         frequency_range = numpy.linspace(freq_b, freq_e, frame_number)
         frequencies = []
-        time_total = round(time_e - time_b, 3)
+        time_total = time_e - time_b
 
         # Write result to excel file
         book = openpyxl.Workbook()
@@ -302,17 +306,17 @@ class MainFrame(QMainWindow):
             i = f_i - 2
             sheet.cell(row=1, column=f_i).value = 'Cell {0}'.format(i)
             maxI = numpy.argmax(self.coord[:, i, 0])
-            freq_crossover = int(frequency_range[maxI])
+            freq_crossover = frequency_range[maxI]
             frequencies.append(freq_crossover)
-            statement = 'Cell # {0}\nRadius : {1} um\nCrossover frequency : {2} Hz' \
+            statement = 'Cell # {0}\nRadius : {1:.3f} um\nCrossover frequency : {2:.0f} Hz' \
                         '\nTotal {3} approximations were made.\n' \
                 .format(i, self.radii[i], freq_crossover, self.errors[i])
-            sheet.cell(row=2, column=f_i).value = self.radii[i]
-            sheet.cell(row=3, column=f_i).value = freq_crossover
+            sheet.cell(row=2, column=f_i).value = round(self.radii[i],3)
+            sheet.cell(row=3, column=f_i).value = round(freq_crossover,3)
 
             QListWidgetItem(statement, self.result_console)
 
-        QListWidgetItem('Total process run in {0} seconds!'.format(time_total), self.text_console)
+        QListWidgetItem('Total process run in {0:.3f} seconds!'.format(time_total), self.text_console)
         QListWidgetItem('Result saved to Cell_Frequency_Radius.xlsx!', self.text_console)
 
         book.save('Cell_Frequency_Radius.xlsx')
@@ -341,8 +345,11 @@ class MainFrame(QMainWindow):
     def detect_feature(self, frame, detector):
         grayscale = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         blur = cv2.GaussianBlur(grayscale, (11, 11), 0)
-        th = cv2.adaptiveThreshold(blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, \
-                                   cv2.THRESH_BINARY, 65, 2)
+        if self.adaptive_check.isChecked():
+            th = cv2.adaptiveThreshold(blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, \
+                                       cv2.THRESH_BINARY, 65, 2)
+        else:
+            th = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
         keypoints = detector.detect(th)
         img_with_keypoints = cv2.drawKeypoints(th, keypoints, numpy.array([]), (0, 255, 0),
                                                cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
@@ -357,6 +364,26 @@ class MainFrame(QMainWindow):
         self.first_frame.clear()
         self.source_video.setText('Source Video Directory')
         cv2.destroyAllWindows()
+
+    def closeEvent(self, event):
+        cv2.destroyAllWindows()
+
+        reply = QMessageBox.question(self, 'Message',
+                                     "Do you really want to quit?", QMessageBox.Yes |
+                                     QMessageBox.No, QMessageBox.No)
+
+        if reply == QMessageBox.Yes:
+            cv2.destroyAllWindows()
+            cv2.destroyWindow('Select ROI')
+            event.accept()
+        else:
+            event.ignore()
+
+    def adaptive_on(self,state):
+        if state:
+            QListWidgetItem('Adaptive threshold enabled!', self.text_console)
+        else:
+            QListWidgetItem('Adaptive threshold disabled!', self.text_console)
 
 
 if __name__ == '__main__':
