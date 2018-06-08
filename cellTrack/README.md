@@ -1,8 +1,16 @@
 # Cell Track
-GUI program to detect cells movement based on python script files.
-Cells are under uniformly increasing alternating current, receiving dielectrophoresis force (DEP force).
-At certain frequency, the cells would change their direction of motion as DEP force becomes the net force.
-With this crossover frequency and the radius of cell, below equation can be solved.<sup>1</sup>
+## Dielectrophoretic Force
+Dielectrophoresis is the movement of particles within the asymmetric electric fields.
+When cells are suspended in a medium with alternating electric fields, they will recieve dielectrophoretic(DEP) force according to the frequency and the conductivity of the suspending medium. 
+If the conductivity of the suspending medium is low enough, at lower frequencies the cells will receive negative DEP force that repels cells from the high field region.
+The size of DEP force decreases as frequency increases, and at a certain frequency the value of DEP force becomes zero. This frequency is defined as "Crossover Frequency."
+After this "Crossover Frequency," the cell will now receive positive DEP force that attracts cells to the high field region.
+Because different cells have different DEP crossover frequency, this value could be used to identify cells.
+
+## Goal
+In this experiment, the high field region is the region with optical rays, and the frequency increases from 10 kHz to 35 kHz with uniform increment.
+The goal of this project was to find the "Crossover Frequency" of each cells to solve below equation.<sup>1</sup>
+
 ![equation](https://raw.githubusercontent.com/jeongm/CV-projects/master/cellTrack/sample/equation.png)  
 ![c_memb](https://github.com/jeongm/CV-projects/blob/master/cellTrack/sample/cmemb.png?raw=true) 
 
@@ -12,8 +20,13 @@ With this crossover frequency and the radius of cell, below equation can be solv
 
 ![f](https://github.com/jeongm/CV-projects/blob/master/cellTrack/sample/f.png?raw=true)
 
-Because Capacitance of cell membrane is a unique property of cells, this value could be used for cell identifications, such as distinguishing cancer cells from normal cells.
-
+## Method
+Region of interest(ROI) is selected from the experimental video. 
+For each frame in the video, image is sliced out according to the dimension of ROI.
+The program will first convert the image into grayscale image and denoise using gaussian blur. 
+With OpenCV's simpleBlobDetector, the program will find any significant "blobs" detected within the frame.
+Radius of cells are determined in the first frame, and the coordinate of the center of detected cells will be recorded.
+After the program finishes processing whole video, 
 
 # Cell Track GUI
 ![title](https://raw.githubusercontent.com/jeongm/CV-projects/master/cellTrack/sample/GUI_sample.jpg)
