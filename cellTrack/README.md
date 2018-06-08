@@ -21,12 +21,13 @@ The goal of this project was to find the "Crossover Frequency" of each cells to 
 ![f](https://github.com/jeongm/CV-projects/blob/master/cellTrack/sample/f.png?raw=true)
 
 ## Method
-Region of interest(ROI) is selected from the experimental video. 
-For each frame in the video, image is sliced out according to the dimension of ROI.
-The program will first convert the image into grayscale image and denoise using gaussian blur. 
-With OpenCV's simpleBlobDetector, the program will find any significant "blobs" detected within the frame.
-Radius of cells are determined in the first frame, and the coordinate of the center of detected cells will be recorded.
-After the program finishes processing whole video, 
+- Region of interest(ROI) is selected from the experimental video. 
+- For each frame in the video, image is sliced out according to the dimension of ROI.
+- The program will first convert the image into grayscale image and denoise using gaussian blur. 
+- With OpenCV's simpleBlobDetector, the program will find any significant "blobs" detected within the frame.
+- Radius of cells are determined in the first frame, and the coordinate of the center of detected cells will be recorded.
+- After the program finishes processing whole video, the list of frequencies for each frame will be calculated using total number of frames.
+> frequency_range = numpy.linspace(initial_frequency, final_frequency, total_number_of_frames)
 
 # Cell Track GUI
 ![title](https://raw.githubusercontent.com/jeongm/CV-projects/master/cellTrack/sample/GUI_sample.jpg)
