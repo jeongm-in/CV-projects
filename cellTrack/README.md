@@ -32,14 +32,17 @@ The goal of this project was to find the "Crossover Frequency" of each cells to 
   - Convert to grayscale - denoise - binarize
 3. Use OpenCV's simpleBlobDetector to find meaningful "blobs" within the ROI.
 4. Record radius of cells from first frame, record coordinate of the detected cells in every frame.
-5. After processing the whole video, find frequency at each frame using below code
-> frequency_range = numpy.linspace(initial_frequency, final_frequency, total_number_of_frames)
+5. After processing the whole video, find frequency at each frame using below code:
+
+`frequency_range = numpy.linspace(initial_frequency, final_frequency, total_number_of_frames)`
+
 6. Find crossover frequency, which is the frequency of the maximum value of cells' x-coordinate value.
-> max_value_index = numpy.argmax(cells_x_coordinates[:])
-> crossover_frequency  = frequency_range[max_val
+
+`max_value_index = numpy.argmax(cells_x_coordinates[:])`,
+`crossover_frequency  = frequency_range[max_val]`
 
 ## Issues in multiple cell detection
-
+Work in progress
 
 # Cell Track GUI
 ![title](https://raw.githubusercontent.com/jeongm/CV-projects/master/cellTrack/sample/GUI_sample.jpg)
