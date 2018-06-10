@@ -1,7 +1,7 @@
 # CV-projects
 Jeong-Min Lim (limjeongmin@wustl.edu)
-Repository for Computer Vision projects.
 
+Repository for Computer Vision projects.
 
 # Contents
 ## [Cell Track](https://github.com/jeongm/CV-projects/tree/master/cellTrack)
